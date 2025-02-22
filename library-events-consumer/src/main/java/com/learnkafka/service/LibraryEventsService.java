@@ -24,41 +24,40 @@ public class LibraryEventsService {
     ObjectMapper objectMapper;
 
     @Autowired
-    KafkaTemplate<Integer,String> kafkaTemplate;
+    KafkaTemplate<Integer, String> kafkaTemplate;
 
     @Autowired
     private LibraryEventsRepository libraryEventsRepository;
 
-    public void processLibraryEvent(ConsumerRecord<Integer,String> consumerRecord) throws JsonProcessingException {
+    public void processLibraryEvent(ConsumerRecord<Integer, String> consumerRecord) throws JsonProcessingException {
         LibraryEvent libraryEvent = objectMapper.readValue(consumerRecord.value(), LibraryEvent.class);
         log.info("libraryEvent : {} ", libraryEvent);
 
-        if(libraryEvent.getLibraryEventId()!=null && ( libraryEvent.getLibraryEventId()==999 )){
+        if (libraryEvent.getLibraryEventId() != null && (libraryEvent.getLibraryEventId() == 999)) {
             throw new RecoverableDataAccessException("Temporary Network Issue");
         }
 
-        switch(libraryEvent.getLibraryEventType()){
+        switch (libraryEvent.getLibraryEventType()) {
             case NEW:
                 save(libraryEvent);
                 break;
             case UPDATE:
-                //validate the libraryevent
                 validate(libraryEvent);
                 save(libraryEvent);
                 break;
             default:
                 log.info("Invalid Library Event Type");
         }
-
     }
 
     private void validate(LibraryEvent libraryEvent) {
-        if(libraryEvent.getLibraryEventId()==null){
+        if (libraryEvent.getLibraryEventId() == null) {
             throw new IllegalArgumentException("Library Event Id is missing");
         }
 
-        Optional<LibraryEvent> libraryEventOptional = libraryEventsRepository.findById(libraryEvent.getLibraryEventId());
-        if(!libraryEventOptional.isPresent()){
+        Optional<LibraryEvent> libraryEventOptional = libraryEventsRepository
+                .findById(libraryEvent.getLibraryEventId());
+        if (!libraryEventOptional.isPresent()) {
             throw new IllegalArgumentException("Not a valid library Event");
         }
         log.info("Validation is successful for the library Event : {} ", libraryEventOptional.get());
@@ -70,12 +69,12 @@ public class LibraryEventsService {
         log.info("Successfully Persisted the libary Event {} ", libraryEvent);
     }
 
-    public void handleRecovery(ConsumerRecord<Integer,String> record){
+    public void handleRecovery(ConsumerRecord<Integer, String> record) {
 
         Integer key = record.key();
         String message = record.value();
 
-        ListenableFuture<SendResult<Integer,String>> listenableFuture = kafkaTemplate.sendDefault(key, message);
+        ListenableFuture<SendResult<Integer, String>> listenableFuture = kafkaTemplate.sendDefault(key, message);
         listenableFuture.addCallback(new ListenableFutureCallback<SendResult<Integer, String>>() {
             @Override
             public void onFailure(Throwable ex) {
@@ -99,6 +98,7 @@ public class LibraryEventsService {
     }
 
     private void handleSuccess(Integer key, String value, SendResult<Integer, String> result) {
-        log.info("Message Sent SuccessFully for the key : {} and the value is {} , partition is {}", key, value, result.getRecordMetadata().partition());
+        log.info("Message Sent SuccessFully for the key : {} and the value is {} , partition is {}", key, value,
+                result.getRecordMetadata().partition());
     }
 }

@@ -3,6 +3,7 @@ package com.learnkafka.config;
 import com.learnkafka.service.FailureService;
 import com.learnkafka.service.LibraryEventsService;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.beans.factory.ObjectProvider;
@@ -13,6 +14,7 @@ import org.springframework.boot.autoconfigure.kafka.ConcurrentKafkaListenerConta
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.dao.RecoverableDataAccessException;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
@@ -20,7 +22,6 @@ import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.*;
-import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.List;
@@ -40,7 +41,7 @@ public class LibraryEventsConsumerConfig {
     KafkaProperties kafkaProperties;
 
     @Autowired
-    KafkaTemplate kafkaTemplate;
+    KafkaTemplate<Integer, String> kafkaTemplate;
 
     @Autowired
     FailureService failureService;
@@ -51,77 +52,53 @@ public class LibraryEventsConsumerConfig {
     @Value("${topics.dlt:library-events.DLT}")
     private String deadLetterTopic;
 
-
+    @SuppressWarnings("unchecked")
     public DeadLetterPublishingRecoverer publishingRecoverer() {
-
-        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate
-                , (r, e) -> {
+        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, (r, e) -> {
             log.error("Exception in publishingRecoverer : {} ", e.getMessage(), e);
             if (e.getCause() instanceof RecoverableDataAccessException) {
                 return new TopicPartition(retryTopic, r.partition());
             } else {
+                log.info("Failed Record in publishingRecoverer : {} ", r);
+                // Save the failed record to the database
+                failureService.saveFailedRecord((ConsumerRecord<Integer,String>) r, e, RETRY);
                 return new TopicPartition(deadLetterTopic, r.partition());
             }
-        }
-        );
+        });
 
         return recoverer;
-
     }
 
-    ConsumerRecordRecoverer consumerRecordRecoverer = (record, exception) -> {
-        log.error("Exception is : {} Failed Record : {} ", exception, record);
-        if (exception.getCause() instanceof RecoverableDataAccessException) {
-            log.info("Inside the recoverable logic");
-            //Add any Recovery Code here.
-            //failureService.saveFailedRecord((ConsumerRecord<Integer, String>) record, exception, RETRY);
-
-        } else {
-            log.info("Inside the non recoverable logic and skipping the record : {}", record);
-
-        }
-    };
-
     public DefaultErrorHandler errorHandler() {
-
+        // List of exceptions that should not be retried
         var exceptiopnToIgnorelist = List.of(
-                IllegalArgumentException.class
-        );
+                IllegalArgumentException.class);
 
-        ExponentialBackOffWithMaxRetries expBackOff = new ExponentialBackOffWithMaxRetries(2);
-        expBackOff.setInitialInterval(1_000L);
-        expBackOff.setMultiplier(2.0);
-        expBackOff.setMaxInterval(2_000L);
-
+        // Configure retry interval (1000ms) and max retry attempts (2 times)
         var fixedBackOff = new FixedBackOff(1000L, 2L);
 
-        /**
-         * Just the Custom Error Handler
-         */
-       // var defaultErrorHandler =  new DefaultErrorHandler(fixedBackOff);
-
-        /**
-         * Error Handler with the BackOff, Exceptions to Ignore, RetryListener
-         */
-
+        // Create a new DefaultErrorHandler to handle errors in Kafka consumer
+        // - publishingRecoverer(): Handles failed messages by sending them to retry
+        // topic or DLT topic
+        // - fixedBackOff: Configures retry interval (1000ms) and max retry attempts (2
+        // times)
         var defaultErrorHandler = new DefaultErrorHandler(
-                //consumerRecordRecoverer
-                publishingRecoverer()
-                ,
-                fixedBackOff
-                //expBackOff
-        );
+                publishingRecoverer(),
+                fixedBackOff);
 
+        // Add exceptions that should not be retried to the default error handler
         exceptiopnToIgnorelist.forEach(defaultErrorHandler::addNotRetryableExceptions);
 
+        // Set retry listeners to handle failed records
         defaultErrorHandler.setRetryListeners(
-                (record, ex, deliveryAttempt) ->
-                        log.info("Failed Record in Retry Listener  exception : {} , deliveryAttempt : {} ", ex.getMessage(), deliveryAttempt)
-        );
+                (record, ex, deliveryAttempt) -> log.info(
+                        "Failed Record in Retry Listener  exception : {} , deliveryAttempt : {} ", ex.getMessage(),
+                        deliveryAttempt));
 
         return defaultErrorHandler;
     }
 
+    @Primary
     @Bean
     @ConditionalOnMissingBean(name = "kafkaListenerContainerFactory")
     ConcurrentKafkaListenerContainerFactory<?, ?> kafkaListenerContainerFactory(
@@ -129,7 +106,8 @@ public class LibraryEventsConsumerConfig {
             ObjectProvider<ConsumerFactory<Object, Object>> kafkaConsumerFactory) {
         ConcurrentKafkaListenerContainerFactory<Object, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         configurer.configure(factory, kafkaConsumerFactory
-                .getIfAvailable(() -> new DefaultKafkaConsumerFactory<>(this.kafkaProperties.buildConsumerProperties())));
+                .getIfAvailable(
+                        () -> new DefaultKafkaConsumerFactory<>(this.kafkaProperties.buildConsumerProperties())));
         factory.setConcurrency(3);
         factory.setCommonErrorHandler(errorHandler());
         return factory;

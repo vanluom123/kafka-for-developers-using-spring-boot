@@ -23,11 +23,13 @@ class FailureRecordRepositoryTest {
     FailureRecordRepository failureRecordRepository;
 
     @BeforeEach
-    public void setUp(){
+    public void setUp() {
         var record = "{\"libraryEventId\":1,\"book\":{\"bookId\":456,\"bookName\":\"Kafka Using Spring Boot 2.X\",\"bookAuthor\":\"Dilip\"}}";
 
-        var failureRecord = new FailureRecord(null,"library-events", 123, record,1,0L, "exception occurred", LibraryEventsConsumerConfig.RETRY);
-        var failureRecord1= new FailureRecord(null,"library-events", 123, record,1,1L, "exception occurred",LibraryEventsConsumerConfig.DEAD);
+        var failureRecord = new FailureRecord(null, "library-events", 123, record, 1, 0L, "exception occurred",
+                LibraryEventsConsumerConfig.RETRY);
+        var failureRecord1 = new FailureRecord(null, "library-events", 123, record, 1, 1L, "exception occurred",
+                LibraryEventsConsumerConfig.DEAD);
 
         failureRecordRepository.saveAll(List.of(failureRecord, failureRecord1));
     }
@@ -35,10 +37,10 @@ class FailureRecordRepositoryTest {
     @Test
     void findAllByStatus() {
 
-        //when
+        // when
         var failRecordList = failureRecordRepository.findAllByStatus(LibraryEventsConsumerConfig.RETRY);
 
-        //then
+        // then
         assertEquals(1, failRecordList.size());
     }
 }

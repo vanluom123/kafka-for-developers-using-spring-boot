@@ -7,14 +7,14 @@ import org.springframework.kafka.listener.AcknowledgingMessageListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
-//@Component
+@Component
 @Slf4j
-public class LibraryEventsConsumerManualOffset implements AcknowledgingMessageListener<Integer,String> {
+public class LibraryEventsConsumerManualOffset implements AcknowledgingMessageListener<Integer, String> {
 
     @Override
-    @KafkaListener(topics = {"library-event s"})
+    @KafkaListener(topics = { "library-events" })
     public void onMessage(ConsumerRecord<Integer, String> consumerRecord, Acknowledgment acknowledgment) {
-        log.info("ConsumerRecord in Manual Offset Consumer: {} ", consumerRecord );
+        log.info("ConsumerRecord in Manual Offset Consumer: {} ", consumerRecord);
         acknowledgment.acknowledge();
     }
 }
