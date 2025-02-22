@@ -15,8 +15,15 @@ public class FailureService {
     }
 
     public void saveFailedRecord(ConsumerRecord<Integer, String> record, Exception exception, String recordStatus) {
-        var failureRecord = new FailureRecord(null, record.topic(), record.key(), record.value(), record.partition(),
-                record.offset(), exception.getCause().getMessage(), recordStatus);
+        FailureRecord failureRecord = FailureRecord.builder()
+                .topic(record.topic())
+                .key(record.key())
+                .errorRecord(record.value())
+                .partition(record.partition())
+                .offsetValue(record.offset())
+                .exception(exception.getCause().getMessage())
+                .status(recordStatus)
+                .build();
         failureRecordRepository.save(failureRecord);
     }
 }

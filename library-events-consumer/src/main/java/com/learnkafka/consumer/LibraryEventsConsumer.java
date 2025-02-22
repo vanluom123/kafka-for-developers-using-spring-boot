@@ -18,7 +18,13 @@ public class LibraryEventsConsumer {
     @KafkaListener(topics = {
             "library-events" }, autoStartup = "${libraryListener.startup:true}", groupId = "library-events-listener-group")
     public void onMessage(ConsumerRecord<Integer, String> consumerRecord) throws JsonProcessingException {
-        log.info("ConsumerRecord : {} ", consumerRecord);
+        String formattedRecord = String.format("Topic: %s, Partition: %d, Offset: %d, Key: %d, Value: %s",
+                consumerRecord.topic(),
+                consumerRecord.partition(),
+                consumerRecord.offset(),
+                consumerRecord.key(),
+                consumerRecord.value());
+        log.info("ConsumerRecord : {}", formattedRecord);
         libraryEventsService.processLibraryEvent(consumerRecord);
     }
 }

@@ -23,19 +23,25 @@ public class LibraryEventsDLTConsumer {
 
     @KafkaListener(topics = { "${topics.dlt}" }, groupId = "dlt-listener-group")
     public void onMessage(ConsumerRecord<Integer, String> consumerRecord) throws JsonProcessingException {
-        log.info("ConsumerRecord in DLT Consumer: {} ", consumerRecord);
+        String formattedRecord = String.format("Topic: %s, Partition: %d, Offset: %d, Key: %d, Value: %s",
+                consumerRecord.topic(),
+                consumerRecord.partition(),
+                consumerRecord.offset(),
+                consumerRecord.key(),
+                consumerRecord.value());
+        log.info("ConsumerRecord in DLT Consumer: {}", formattedRecord);
         try {
             libraryEventsService.processLibraryEvent(consumerRecord);
         } catch (Exception e) {
-            FailureRecord failureRecord = new FailureRecord(
-                    null,
-                    consumerRecord.topic(),
-                    consumerRecord.key(),
-                    consumerRecord.value(),
-                    consumerRecord.partition(),
-                    consumerRecord.offset(),
-                    e.getMessage(),
-                    LibraryEventsConsumerConfig.DEAD);
+            FailureRecord failureRecord = FailureRecord.builder()
+                    .topic(consumerRecord.topic())
+                    .key(consumerRecord.key())
+                    .errorRecord(consumerRecord.value())
+                    .partition(consumerRecord.partition())
+                    .offsetValue(consumerRecord.offset())
+                    .exception(e.getCause().getMessage())
+                    .status(LibraryEventsConsumerConfig.DEAD)
+                    .build();
             failureRecordRepository.save(failureRecord);
         }
     }
