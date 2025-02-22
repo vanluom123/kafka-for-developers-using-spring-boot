@@ -20,10 +20,10 @@ public class RetryScheduler {
     @Autowired
     FailureRecordRepository failureRecordRepository;
 
-    @Scheduled(fixedRate = 100000000)
+    @Scheduled(fixedRate = 100000)
     public void retryFailedRecords() {
         log.info("Retrying Failed Records Started!");
-        var status = LibraryEventsConsumerConfig.RETRY;
+        var status = LibraryEventsConsumerConfig.DEAD;
         failureRecordRepository.findAllByStatus(status)
                 .forEach(failureRecord -> {
                     try {

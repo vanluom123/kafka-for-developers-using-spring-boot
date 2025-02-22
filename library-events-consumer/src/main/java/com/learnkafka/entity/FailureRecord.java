@@ -24,6 +24,9 @@ public class FailureRecord {
     @Column(name = "id")
     private Integer id;
 
+    @Column(name = "book_id")
+    private Integer bookId;
+
     @Column(name = "topic")
     private String topic;
 
@@ -44,4 +47,23 @@ public class FailureRecord {
 
     @Column(name = "status")
     private String status;
+
+    public FailureRecord(
+            Integer bookId,
+            String topic,
+            Integer key,
+            String errorRecord,
+            Integer partition,
+            Long offsetValue,
+            String exception,
+            String status) {
+        this.bookId = bookId;
+        this.topic = topic;
+        this.key = key;
+        this.errorRecord = errorRecord;
+        this.partition = partition;
+        this.offsetValue = offsetValue;
+        this.exception = exception;
+        this.status = status;
+    }
 }

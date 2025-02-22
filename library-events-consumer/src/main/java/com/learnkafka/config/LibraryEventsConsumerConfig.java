@@ -1,10 +1,7 @@
 package com.learnkafka.config;
 
-import com.learnkafka.service.FailureService;
-import com.learnkafka.service.LibraryEventsService;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +18,8 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.listener.*;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.List;
@@ -34,8 +32,6 @@ public class LibraryEventsConsumerConfig {
     public static final String RETRY = "RETRY";
     public static final String SUCCESS = "SUCCESS";
     public static final String DEAD = "DEAD";
-    @Autowired
-    LibraryEventsService libraryEventsService;
 
     @Autowired
     KafkaProperties kafkaProperties;
@@ -43,25 +39,18 @@ public class LibraryEventsConsumerConfig {
     @Autowired
     KafkaTemplate<Integer, String> kafkaTemplate;
 
-    @Autowired
-    FailureService failureService;
-
     @Value("${topics.retry:library-events.RETRY}")
     private String retryTopic;
 
     @Value("${topics.dlt:library-events.DLT}")
     private String deadLetterTopic;
 
-    @SuppressWarnings("unchecked")
     public DeadLetterPublishingRecoverer publishingRecoverer() {
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, (r, e) -> {
             log.error("Exception in publishingRecoverer : {} ", e.getMessage(), e);
             if (e.getCause() instanceof RecoverableDataAccessException) {
                 return new TopicPartition(retryTopic, r.partition());
             } else {
-                log.info("Failed Record in publishingRecoverer : {} ", r);
-                // Save the failed record to the database
-                failureService.saveFailedRecord((ConsumerRecord<Integer,String>) r, e, RETRY);
                 return new TopicPartition(deadLetterTopic, r.partition());
             }
         });

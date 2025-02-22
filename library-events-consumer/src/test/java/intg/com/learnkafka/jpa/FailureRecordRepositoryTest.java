@@ -2,15 +2,11 @@ package com.learnkafka.jpa;
 
 import com.learnkafka.config.LibraryEventsConsumerConfig;
 import com.learnkafka.entity.FailureRecord;
-import org.aspectj.lang.annotation.Before;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
-import scala.util.Failure;
-
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;

@@ -46,6 +46,7 @@ public class RetrySchedulerIntegrationTest {
         failureRecordRepository.saveAll(List.of(failureRecord, failureRecord1));
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     @Disabled
     public void retryFailedRecords() throws JsonProcessingException {
