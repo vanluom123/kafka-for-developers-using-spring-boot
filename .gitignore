@@ -27,3 +27,22 @@ hs_err_pid*
 /code-zips
 /ssl
 .idea/
+
+
+# Ignore .mysql-data
+.mysql-data/
+
+# Ignore vscode
+.vscode/
+
+# Ignore bin
+bin/
+
+# Ignore .env
+.env
+
+# Ignore build
+build/
+
+
+

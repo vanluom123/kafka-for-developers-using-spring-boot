@@ -5,26 +5,26 @@ import com.learnkafka.service.LibraryEventsService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.annotation.KafkaHandler;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-//@KafkaListener
 public class LibraryEventsConsumer {
 
     @Autowired
     private LibraryEventsService libraryEventsService;
 
-    @KafkaListener(
-            topics = {"library-events"}
-            , autoStartup = "${libraryListener.startup:true}"
-            , groupId = "library-events-listener-group")
+    @KafkaListener(topics = {
+            "library-events" }, autoStartup = "${libraryListener.startup:true}", groupId = "library-events-listener-group")
     public void onMessage(ConsumerRecord<Integer, String> consumerRecord) throws JsonProcessingException {
-
-        log.info("ConsumerRecord : {} ", consumerRecord);
+        String formattedRecord = String.format("Topic: %s, Partition: %d, Offset: %d, Key: %d, Value: %s",
+                consumerRecord.topic(),
+                consumerRecord.partition(),
+                consumerRecord.offset(),
+                consumerRecord.key(),
+                consumerRecord.value());
+        log.info("ConsumerRecord : {}", formattedRecord);
         libraryEventsService.processLibraryEvent(consumerRecord);
-
     }
 }
