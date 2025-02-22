@@ -22,32 +22,13 @@ import java.util.concurrent.TimeoutException;
 @Component
 @Slf4j
 public class LibraryEventProducer {
+    private static final String topic = "library-events";
 
     @Autowired
     KafkaTemplate<Integer, String> kafkaTemplate;
 
-    String topic = "library-events";
     @Autowired
     ObjectMapper objectMapper;
-
-    public void sendLibraryEvent(LibraryEvent libraryEvent) throws JsonProcessingException {
-
-        Integer key = libraryEvent.getLibraryEventId();
-        String value = objectMapper.writeValueAsString(libraryEvent);
-
-        ListenableFuture<SendResult<Integer, String>> listenableFuture = kafkaTemplate.sendDefault(key, value);
-        listenableFuture.addCallback(new ListenableFutureCallback<SendResult<Integer, String>>() {
-            @Override
-            public void onFailure(Throwable ex) {
-                handleFailure(key, value, ex);
-            }
-
-            @Override
-            public void onSuccess(SendResult<Integer, String> result) {
-                handleSuccess(key, value, result);
-            }
-        });
-    }
 
     public ListenableFuture<SendResult<Integer, String>> sendLibraryEvent_Approach2(LibraryEvent libraryEvent)
             throws JsonProcessingException {
@@ -56,9 +37,7 @@ public class LibraryEventProducer {
         String value = objectMapper.writeValueAsString(libraryEvent);
 
         ProducerRecord<Integer, String> producerRecord = buildProducerRecord(key, value, topic);
-
         ListenableFuture<SendResult<Integer, String>> listenableFuture = kafkaTemplate.send(producerRecord);
-
         listenableFuture.addCallback(new ListenableFutureCallback<SendResult<Integer, String>>() {
             @Override
             public void onFailure(Throwable ex) {
@@ -72,13 +51,6 @@ public class LibraryEventProducer {
         });
 
         return listenableFuture;
-    }
-
-    private ProducerRecord<Integer, String> buildProducerRecord(Integer key, String value, String topic) {
-
-        List<Header> recordHeaders = List.of(new RecordHeader("event-source", "scanner".getBytes()));
-
-        return new ProducerRecord<>(topic, null, key, value, recordHeaders);
     }
 
     public SendResult<Integer, String> sendLibraryEventSynchronous(LibraryEvent libraryEvent)
@@ -102,6 +74,11 @@ public class LibraryEventProducer {
 
     }
 
+    private ProducerRecord<Integer, String> buildProducerRecord(Integer key, String value, String topic) {
+        List<Header> recordHeaders = List.of(new RecordHeader("event-source", "scanner".getBytes()));
+        return new ProducerRecord<>(topic, null, key, value, recordHeaders);
+    }
+
     private void handleFailure(Integer key, String value, Throwable ex) {
         log.error("Error Sending the Message and the exception is {}", ex.getMessage());
         try {
@@ -109,7 +86,6 @@ public class LibraryEventProducer {
         } catch (Throwable throwable) {
             log.error("Error in OnFailure: {}", throwable.getMessage());
         }
-
     }
 
     private void handleSuccess(Integer key, String value, SendResult<Integer, String> result) {
