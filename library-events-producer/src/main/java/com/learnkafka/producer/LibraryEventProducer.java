@@ -24,7 +24,7 @@ import java.util.concurrent.TimeoutException;
 public class LibraryEventProducer {
 
     @Autowired
-    KafkaTemplate<Integer,String> kafkaTemplate;
+    KafkaTemplate<Integer, String> kafkaTemplate;
 
     String topic = "library-events";
     @Autowired
@@ -35,7 +35,7 @@ public class LibraryEventProducer {
         Integer key = libraryEvent.getLibraryEventId();
         String value = objectMapper.writeValueAsString(libraryEvent);
 
-        ListenableFuture<SendResult<Integer,String>> listenableFuture =  kafkaTemplate.sendDefault(key,value);
+        ListenableFuture<SendResult<Integer, String>> listenableFuture = kafkaTemplate.sendDefault(key, value);
         listenableFuture.addCallback(new ListenableFutureCallback<SendResult<Integer, String>>() {
             @Override
             public void onFailure(Throwable ex) {
@@ -49,14 +49,15 @@ public class LibraryEventProducer {
         });
     }
 
-    public ListenableFuture<SendResult<Integer,String>> sendLibraryEvent_Approach2(LibraryEvent libraryEvent) throws JsonProcessingException {
+    public ListenableFuture<SendResult<Integer, String>> sendLibraryEvent_Approach2(LibraryEvent libraryEvent)
+            throws JsonProcessingException {
 
         Integer key = libraryEvent.getLibraryEventId();
         String value = objectMapper.writeValueAsString(libraryEvent);
 
-        ProducerRecord<Integer,String> producerRecord = buildProducerRecord(key, value, topic);
+        ProducerRecord<Integer, String> producerRecord = buildProducerRecord(key, value, topic);
 
-        ListenableFuture<SendResult<Integer,String>> listenableFuture =  kafkaTemplate.send(producerRecord);
+        ListenableFuture<SendResult<Integer, String>> listenableFuture = kafkaTemplate.send(producerRecord);
 
         listenableFuture.addCallback(new ListenableFutureCallback<SendResult<Integer, String>>() {
             @Override
@@ -75,22 +76,22 @@ public class LibraryEventProducer {
 
     private ProducerRecord<Integer, String> buildProducerRecord(Integer key, String value, String topic) {
 
-
         List<Header> recordHeaders = List.of(new RecordHeader("event-source", "scanner".getBytes()));
 
         return new ProducerRecord<>(topic, null, key, value, recordHeaders);
     }
 
-
-    public SendResult<Integer, String> sendLibraryEventSynchronous(LibraryEvent libraryEvent) throws JsonProcessingException, ExecutionException, InterruptedException, TimeoutException {
+    public SendResult<Integer, String> sendLibraryEventSynchronous(LibraryEvent libraryEvent)
+            throws JsonProcessingException, ExecutionException, InterruptedException, TimeoutException {
 
         Integer key = libraryEvent.getLibraryEventId();
         String value = objectMapper.writeValueAsString(libraryEvent);
-        SendResult<Integer,String> sendResult=null;
+        SendResult<Integer, String> sendResult = null;
         try {
-            sendResult = kafkaTemplate.sendDefault(key,value).get(1, TimeUnit.SECONDS);
+            sendResult = kafkaTemplate.sendDefault(key, value).get(1, TimeUnit.SECONDS);
         } catch (ExecutionException | InterruptedException e) {
-            log.error("ExecutionException/InterruptedException Sending the Message and the exception is {}", e.getMessage());
+            log.error("ExecutionException/InterruptedException Sending the Message and the exception is {}",
+                    e.getMessage());
             throw e;
         } catch (Exception e) {
             log.error("Exception Sending the Message and the exception is {}", e.getMessage());
@@ -109,10 +110,10 @@ public class LibraryEventProducer {
             log.error("Error in OnFailure: {}", throwable.getMessage());
         }
 
-
     }
 
     private void handleSuccess(Integer key, String value, SendResult<Integer, String> result) {
-        log.info("Message Sent SuccessFully for the key : {} and the value is {} , partition is {}", key, value, result.getRecordMetadata().partition());
+        log.info("Message Sent SuccessFully for the key : {} and the value is {} , partition is {}", key, value,
+                result.getRecordMetadata().partition());
     }
 }
